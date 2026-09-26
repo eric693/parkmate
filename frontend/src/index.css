@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-warm font-sans text-gray-800;
+  }
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-sm p-4;
+  }
+  .btn-primary {
+    @apply bg-brand text-white rounded-xl px-4 py-2 font-medium hover:bg-brand-dark transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-white text-brand border border-brand rounded-xl px-4 py-2 font-medium hover:bg-warm transition-colors;
+  }
+  .btn-danger {
+    @apply bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-2 font-medium hover:bg-red-100 transition-colors;
+  }
+  .input {
+    @apply w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand;
+  }
+  .badge-paid {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700;
+  }
+  .badge-pending {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700;
+  }
+  .badge-overdue {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700;
+  }
+  .badge-vacant {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
