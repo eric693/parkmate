@@ -73,7 +73,7 @@ export default function RentStats() {
 
   return (
     <div className="px-6 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">月租與收入統計</h1>
           <p className="text-xs text-gray-400 mt-0.5">{year} 年逐月與各車位統計</p>

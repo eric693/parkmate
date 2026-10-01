@@ -132,7 +132,7 @@ export default function DormRecords() {
 
   return (
     <div className="px-6 py-6 max-w-5xl">
-      <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
+      <div className="page-header items-start justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">月租收費紀錄</h1>
           <p className="text-xs text-gray-400 mt-0.5">每個車位的月租收費紀錄、下次繳費日與未繳金額</p>

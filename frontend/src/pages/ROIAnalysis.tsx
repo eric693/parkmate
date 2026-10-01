@@ -85,7 +85,7 @@ export default function ROIAnalysis() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+      <div className="page-header items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
         <div>
           <h1 className="text-xl font-bold text-gray-800">投報分析</h1>
           <p className="text-xs text-gray-400 mt-0.5">近 12 個月各房產收益、空置成本與年化投報率</p>

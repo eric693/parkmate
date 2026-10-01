@@ -24,6 +24,7 @@ import RentBell from './pages/RentBell';
 import RentStats from './pages/RentStats';
 import DormRecords from './pages/DormRecords';
 import Accounts from './pages/Accounts';
+import Files from './pages/Files';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="listings" element={<PermissionGate><Listings /></PermissionGate>} />
             <Route path="roi" element={<PermissionGate><ROIAnalysis /></PermissionGate>} />
             <Route path="maintenance" element={<PermissionGate><Maintenance /></PermissionGate>} />
+            <Route path="files" element={<PermissionGate><Files /></PermissionGate>} />
             <Route path="settings" element={<PermissionGate><Settings /></PermissionGate>} />
             <Route path="accounts" element={<Accounts />} />
           </Route>

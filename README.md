@@ -2,11 +2,13 @@
 
 以 RentMate 為模板的**停車場月租**版本：停車場 → 車位 → 車主 → 月租合約。
 
-- 正式網址：https://partmate.crownai.ink（後端 port 3005，同時提供前端頁面）
+- 正式網址：https://parkmate.crownai.ink（後端 port 3005，同時提供前端頁面）
 - 資料庫：PostgreSQL `parkmate`
 - pm2：`parkmate`
 - 新增功能：車輛／車牌管理、車牌查詢（車主、車位、遙控器、繳費狀態）、合約登記車輛與遙控器／感應卡（押金、歸還）
 - 隱藏住宅功能：水電帳單、預付電費、租金行情、點交、住宅法規合規檢查（開關在 frontend/src/lib/features.ts）
+
+- 登入頁示範帳號：`demo` / `demo1234`（backend/.env 的 `DEMO_ACCOUNT`/`DEMO_PASSWORD`，清空即不顯示；示範帳號不能改帳密）。停車場示範資料：`cd backend && npm run db:seed:parking`
 
 部署：`cd backend && npx tsc && pm2 restart parkmate`；前端 `cd frontend && npm run build`。
 全系統測試：`cd backend && API=http://localhost:3005/api npm run test:smoke`

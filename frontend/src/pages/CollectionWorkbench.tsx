@@ -182,7 +182,7 @@ export default function CollectionWorkbench() {
   const { stats, groups } = data;
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="md:h-full flex flex-col relative">
       {/* Toast */}
       {toast && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-xl shadow-lg flex items-center gap-2">
@@ -192,7 +192,7 @@ export default function CollectionWorkbench() {
       )}
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+      <div className="page-header items-center justify-between px-4 md:px-6 py-4 bg-white border-b border-gray-100">
         <h1 className="text-xl font-bold text-gray-800">收款工作台</h1>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
@@ -222,7 +222,7 @@ export default function CollectionWorkbench() {
         </div>
       </div>
 
-      <div className="px-6 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <HowTo module="workbench" />
       </div>
 
@@ -239,9 +239,9 @@ export default function CollectionWorkbench() {
       </div>
 
       {/* 3-column layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden">
         {/* Left: groups */}
-        <div className="w-64 flex-shrink-0 border-r border-gray-100 bg-white flex flex-col">
+        <div className="w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-100 bg-white flex flex-col">
           <div className="p-3 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-700 mb-2">收款群組</h3>
             <div className="relative">
@@ -253,7 +253,7 @@ export default function CollectionWorkbench() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-48 md:max-h-none">
             <button
               onClick={() => setSelectedGroup(null)}
               className={`w-full text-left p-2.5 rounded-xl transition-colors ${!selectedGroup ? 'bg-brand/5 border border-brand/20' : 'hover:bg-gray-50'}`}
@@ -285,7 +285,7 @@ export default function CollectionWorkbench() {
         </div>
 
         {/* Center: task table */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-warm">
+        <div className="flex-1 flex flex-col md:overflow-hidden bg-warm">
           <div className="bg-white border-b border-gray-100 px-4 pt-3 pb-0">
             <h3 className="font-semibold text-sm text-gray-700 mb-2">收款任務</h3>
             <div className="flex gap-1 overflow-x-auto pb-0">
@@ -331,7 +331,7 @@ export default function CollectionWorkbench() {
             </select>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-auto max-h-[70vh] md:max-h-none [&>*]:min-w-[640px]">
             {/* Table header */}
             <div className="sticky top-0 bg-gray-50 border-b border-gray-100 grid grid-cols-7 px-4 py-2 text-xs text-gray-400 font-medium">
               <div>車位編號</div>
@@ -378,7 +378,7 @@ export default function CollectionWorkbench() {
         </div>
 
         {/* Right: detail panel */}
-        <div className="w-72 flex-shrink-0 border-l border-gray-100 bg-white flex flex-col overflow-y-auto">
+        <div className="w-full md:w-72 flex-shrink-0 border-t md:border-t-0 md:border-l border-gray-100 bg-white flex flex-col overflow-y-auto">
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-700">收款摘要 / 快速操作</h3>
           </div>
@@ -486,13 +486,13 @@ export default function CollectionWorkbench() {
       </div>
 
       {/* Bottom summary bar */}
-      <div className="bg-white border-t border-gray-100 px-6 py-3 flex items-center gap-6 text-sm text-gray-500 flex-shrink-0">
+      <div className="bg-white border-t border-gray-100 px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-gray-500 flex-shrink-0">
         <div><span className="font-semibold text-brand">{stats.collectionRate}%</span> 收款率</div>
-        <div className="text-gray-300">|</div>
+        <div className="text-gray-300 hidden md:block">|</div>
         <div>已入帳 <span className="font-medium text-gray-700">NT${stats.collectedAmount.toLocaleString()} / NT${stats.totalAmount.toLocaleString()}</span></div>
-        <div className="text-gray-300">|</div>
+        <div className="text-gray-300 hidden md:block">|</div>
         <div>待確認 <span className="font-medium text-gray-700">NT${stats.pendingAmount.toLocaleString()}</span></div>
-        <div className="text-gray-300">|</div>
+        <div className="text-gray-300 hidden md:block">|</div>
         <div>逾期 <span className="font-medium text-red-500">NT${stats.overdueAmount.toLocaleString()}</span></div>
         <div className="ml-auto text-xs text-gray-400">
           未確認 · {filteredTasks.length} 筆 &nbsp;|&nbsp; 今日任務 {stats.todayProcess} 筆

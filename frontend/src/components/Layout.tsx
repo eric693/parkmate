@@ -21,6 +21,10 @@ import {
   TrendingUp,
   ShieldCheck,
   Car,
+  FolderOpen,
+  Menu,
+  X,
+  MoreHorizontal,
 } from 'lucide-react';
 
 const FINANCE_ITEMS = [
@@ -41,6 +45,9 @@ export default function Layout() {
   const location = useLocation();
   const [financeOpen, setFinanceOpen] = useState(location.pathname.startsWith('/finance'));
   const [urgentCount, setUrgentCount] = useState(0);
+  // 手機：側邊選單改為抽屜
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [location.pathname]);
 
   useEffect(() => {
     if (!can(user, 'dashboard')) return;
@@ -55,11 +62,14 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   return (
-    <div className="flex h-screen bg-warm overflow-hidden">
+    <div className="flex h-screen h-[100dvh] bg-warm overflow-hidden">
       <InstallPrompt />
       {can(user, 'finance') && <RentBellWatcher />}
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 flex-shrink-0">
+      {menuOpen && <div className="md:hidden fixed inset-0 bg-black/40 z-[55]" onClick={() => setMenuOpen(false)} />}
+      <aside
+        className={`${menuOpen ? 'fixed inset-y-0 left-0 z-[56] flex shadow-2xl pt-safe' : 'hidden'} md:static md:z-auto md:shadow-none md:pt-0 md:flex flex-col w-64 max-w-[80vw] md:w-56 bg-white border-r border-gray-100 flex-shrink-0`}
+      >
         {/* Logo */}
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
@@ -70,6 +80,9 @@ export default function Layout() {
               <div className="font-bold text-gray-800 text-sm leading-tight">ParkMate</div>
               <div className="text-xs text-gray-400">停車位月租平台</div>
             </div>
+            <button onClick={() => setMenuOpen(false)} className="md:hidden ml-auto p-1.5 rounded-lg hover:bg-gray-100" aria-label="關閉選單">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
           </div>
         </div>
 
@@ -148,12 +161,13 @@ export default function Layout() {
           {can(user, 'roi') && <SidebarLink to="/roi" label="投報分析" icon={TrendingUp} />}
           {can(user, 'maintenance') && <SidebarLink to="/maintenance" label="報修" icon={Wrench} />}
           {can(user, 'contracts') && <SidebarLink to="/contracts" label="合約" icon={FileText} />}
+          <SidebarLink to="/files" label="檔案庫" icon={FolderOpen} />
           {can(user, 'settings') && <SidebarLink to="/settings" label="設定" icon={Settings} />}
           <SidebarLink to="/accounts" label={isAdmin(user) ? '帳號權限' : '我的帳號'} icon={ShieldCheck} />
         </nav>
 
         {/* Bottom tip */}
-        {can(user, 'settings') && <div className="mx-3 mb-3 bg-warm rounded-xl p-3 border border-gray-100">
+        {can(user, 'settings') && <div className="hidden md:block mx-3 mb-3 bg-warm rounded-xl p-3 border border-gray-100">
           <div className="flex items-center gap-1.5 mb-1">
             <Sparkles className="w-3.5 h-3.5 text-brand" />
             <span className="text-xs font-semibold text-gray-600">使用小秘訣</span>
@@ -164,25 +178,45 @@ export default function Layout() {
           </button>
         </div>}
 
-        <div className="px-4 pb-3 text-xs text-gray-300">ParkMate 停車位月租後台 v1.0.0</div>
+        <div className="px-3 pb-3 pb-safe flex items-center justify-between gap-2">
+          <span className="text-xs text-gray-300 pl-1">ParkMate v1.0.0</span>
+          <button onClick={handleLogout} className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1 hover:border-red-200 hover:text-red-500 transition-colors">
+            登出
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile top bar */}
+        <header className="md:hidden flex items-center gap-2 bg-white border-b border-gray-100 px-3 pb-2 pt-safe-2 flex-shrink-0">
+          <button onClick={() => setMenuOpen(true)} className="p-2 -ml-1 rounded-lg hover:bg-gray-100" aria-label="開啟選單">
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center flex-shrink-0">
+            <Home className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-gray-800 text-sm">ParkMate</span>
+          {urgentCount > 0 && (
+            <button onClick={() => navigate('/finance/workbench')} className="ml-auto flex items-center gap-1 bg-red-50 text-red-600 text-xs font-medium rounded-full px-2.5 py-1">
+              <Bell className="w-3.5 h-3.5" />{urgentCount} 項待處理
+            </button>
+          )}
+        </header>
+        <main className="flex-1 overflow-y-auto pb-bottom-nav md:pb-0">
           <Outlet />
         </main>
 
         {/* Mobile Bottom Nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-50 shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-40 shadow-lg pb-safe">
           {[
             { to: '/', label: '總覽', icon: LayoutDashboard, exact: true },
+            { to: '/vehicles', label: '車牌', icon: Car, exact: false },
             { to: '/properties', label: '車位', icon: Building2, exact: false },
             { to: '/finance', label: '帳務', icon: CreditCard, exact: false },
-            { to: '/roi', label: '投報', icon: TrendingUp, exact: false },
-            { to: '/settings', label: '設定', icon: Settings, exact: false },
-            { to: '/accounts', label: '帳號', icon: ShieldCheck, exact: false },
-          ].filter((item) => canRoute(user, item.to)).slice(0, 5).map((item) => (
+            { to: '/tenants', label: '車主', icon: Users, exact: false },
+            { to: '/contracts', label: '合約', icon: FileText, exact: false },
+          ].filter((item) => canRoute(user, item.to)).slice(0, 4).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -200,6 +234,13 @@ export default function Layout() {
               )}
             </NavLink>
           ))}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className={`flex-1 flex flex-col items-center py-2 gap-0.5 text-xs transition-colors ${menuOpen ? 'text-brand' : 'text-gray-400'}`}
+          >
+            <MoreHorizontal className="w-5 h-5" />
+            <span>更多</span>
+          </button>
         </nav>
       </div>
     </div>

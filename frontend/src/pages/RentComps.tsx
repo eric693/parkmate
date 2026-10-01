@@ -110,7 +110,7 @@ export default function RentComps() {
           目前平台資料樣本不足，行情建議將隨資料累積開放。
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-400">

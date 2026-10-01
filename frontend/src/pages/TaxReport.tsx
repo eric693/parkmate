@@ -62,7 +62,7 @@ export default function TaxReport() {
 
   return (
     <div className="px-6 py-6 max-w-3xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">租賃所得申報</h1>
           <p className="text-xs text-gray-400 mt-0.5">申報前先檢查資料，再匯出申報參考表</p>

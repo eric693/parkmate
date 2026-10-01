@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware/auth';
+import { requireAuth, requireAdmin, AuthRequest } from '../middleware/auth';
 import { listModules, listUsers, createUser, updateUser, deleteUser } from '../controllers/userController';
 import { requireTenant } from '../middleware/tenantAuth';
 import {
@@ -21,7 +21,7 @@ import {
   updateContractTemplate, deletePayment, getDataSummary, wipeAllData,
 } from '../controllers/crudController';
 import { getVehicles, createVehicle, updateVehicle, deleteVehicle } from '../controllers/vehicleController';
-import { register, login, me, updateMe } from '../controllers/authController';
+import { register, login, me, updateMe, demoAccount } from '../controllers/authController';
 import { getDashboard } from '../controllers/dashboardController';
 import { getProperties, createProperty, updateProperty, deleteProperty } from '../controllers/propertyController';
 import { getUnits, createUnit, updateUnit, deleteUnit } from '../controllers/unitController';
@@ -60,12 +60,38 @@ import {
   tenantMe, tenantContracts, tenantRentRecords, tenantPaymentInfo,
   tenantMaintenanceList, tenantCreateMaintenance,
 } from '../controllers/tenantPortalController';
+import {
+  listAttachments, attachmentSummary, getCategories, uploadAttachment,
+  downloadAttachment, updateAttachment, deleteAttachment, purgeOrphanAttachments,
+} from '../controllers/attachmentController';
 
 const router = Router();
+
+// 任何刪除成功（含清空資料）後，清掉掛在已不存在資料上的附件檔
+router.use((req: AuthRequest, res, next) => {
+  if (req.method === 'DELETE' || req.path === '/data/wipe') {
+    res.on('finish', () => {
+      if (res.statusCode < 300 && req.userId && !req.path.startsWith('/attachments')) {
+        purgeOrphanAttachments(req.userId).catch((e) => console.error('[attachments purge]', e));
+      }
+    });
+  }
+  next();
+});
+
+// 附件（照片／檔案）。權限依附件所屬對象在 controller 內檢查。
+router.get('/attachments', requireAuth, listAttachments);
+router.get('/attachments/summary', requireAuth, attachmentSummary);
+router.get('/attachments/categories', requireAuth, getCategories);
+router.post('/attachments', requireAuth, uploadAttachment);
+router.get('/attachments/:id/file', requireAuth, downloadAttachment);
+router.put('/attachments/:id', requireAuth, updateAttachment);
+router.delete('/attachments/:id', requireAuth, deleteAttachment);
 
 // Auth
 router.post('/auth/register', register);
 router.post('/auth/login', login);
+router.get('/auth/demo', demoAccount);
 router.get('/auth/me', requireAuth, me);
 router.put('/auth/me', requireAuth, updateMe);
 

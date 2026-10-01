@@ -3,6 +3,8 @@ import { X, Plus, Sparkles, Scale } from 'lucide-react';
 import api from '../api/client';
 import { MaintenanceRequest, Property } from '../types';
 import HowTo from '../components/HowTo';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 import SearchBox, { matches } from '../components/SearchBox';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
@@ -31,6 +33,7 @@ export default function Maintenance() {
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<MaintenanceRequest | null>(null);
   const [loading, setLoading] = useState(true);
+  const files = useAttachmentSummary('MAINTENANCE');
   const [search, setSearch] = useState('');
   const [analyses, setAnalyses] = useState<Record<string, Analysis>>({});
   const [analyzing, setAnalyzing] = useState<string | null>(null);
@@ -88,7 +91,7 @@ export default function Maintenance() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="page-header items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-800">報修管理</h1>
         <button onClick={() => setShowAdd(true)} className="btn-primary text-sm flex items-center gap-1"><Plus className="w-4 h-4" />新增報修</button>
       </div>
@@ -170,7 +173,15 @@ export default function Maintenance() {
                   {r.status === 'IN_PROGRESS' && (
                     <button onClick={() => updateStatus(r.id, 'COMPLETED')} className="btn-primary text-xs flex-1">標記完成</button>
                   )}
-                  <button onClick={() => setEditItem(r)} className="text-xs text-gray-400 hover:text-gray-600 px-2 ml-auto">編輯</button>
+                  <span className="ml-auto" />
+                  <AttachmentButton
+                    entityType="MAINTENANCE"
+                    entityId={r.id}
+                    title={`報修 ${r.title}・${r.unit?.property?.name ?? ''} ${r.unit?.unitNumber ?? ''}（維修前後照片、報價單、發票）`}
+                    count={files.summary[r.id]?.count}
+                    onChanged={files.refresh}
+                  />
+                  <button onClick={() => setEditItem(r)} className="text-xs text-gray-400 hover:text-gray-600 px-2">編輯</button>
                   <button onClick={() => removeRequest(r)} className="text-xs text-red-400 hover:text-red-600 px-2">刪除</button>
                 </div>
             </div>

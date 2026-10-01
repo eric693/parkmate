@@ -29,6 +29,15 @@ export const config = {
     },
   },
 
+  // 登入頁公開顯示的示範帳號。兩者都設定才會顯示；清空即隱藏。
+  demo: {
+    account: (process.env.DEMO_ACCOUNT ?? '').trim().toLowerCase(),
+    password: process.env.DEMO_PASSWORD ?? '',
+    get enabled() {
+      return Boolean(this.account && this.password);
+    },
+  },
+
   // Claude AI 助理
   ai: {
     apiKey: process.env.ANTHROPIC_API_KEY ?? '',

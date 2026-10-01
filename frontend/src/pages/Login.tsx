@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 
 export default function Login() {
   const { login } = useAuth();
@@ -9,6 +10,19 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demo, setDemo] = useState<{ account: string; password: string } | null>(null);
+
+  // 示範帳號由後端 .env 設定，未設定時不顯示
+  useEffect(() => {
+    api.get('/auth/demo').then((r) => setDemo(r.data)).catch(() => setDemo(null));
+  }, []);
+
+  function fillDemo() {
+    if (!demo) return;
+    setEmail(demo.account);
+    setPassword(demo.password);
+    setError('');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +48,21 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-gray-800">ParkMate 微停</h1>
           <p className="text-gray-500 text-sm mt-1">專為業者打造的停車位月租管理平台</p>
         </div>
+
+        {demo && (
+          <div className="mb-4 rounded-xl border border-brand/30 bg-white px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-semibold text-gray-800 mb-1">示範帳號</div>
+                <div className="text-gray-600">帳號：<span className="font-mono font-semibold text-gray-900 select-all">{demo.account}</span></div>
+                <div className="text-gray-600">密碼：<span className="font-mono font-semibold text-gray-900 select-all">{demo.password}</span></div>
+              </div>
+              <button type="button" onClick={fillDemo} className="shrink-0 rounded-lg border border-brand px-3 py-2 text-sm font-medium text-brand hover:bg-brand hover:text-white transition-colors">
+                一鍵帶入
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="card shadow-md">
           <form onSubmit={handleSubmit} className="space-y-4">

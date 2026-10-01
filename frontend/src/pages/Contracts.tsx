@@ -7,6 +7,8 @@ import ComplianceModal from '../components/ComplianceModal';
 import HandoverModal from '../components/HandoverModal';
 import ContractDocumentModal from '../components/ContractDocumentModal';
 import HowTo from '../components/HowTo';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 import { FEATURES } from '../lib/features';
 
 type FilterType = 'all' | 'active' | 'expiring' | 'expired' | 'terminated';
@@ -19,6 +21,7 @@ export default function Contracts() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(true);
+  const files = useAttachmentSummary('CONTRACT');
   const [signResult, setSignResult] = useState<{ contractId: string; signUrl: string; sent: boolean } | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
@@ -116,7 +119,7 @@ export default function Contracts() {
   return (
     <div className="px-6 py-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">合約管理</h1>
           <p className="text-xs text-gray-400 mt-0.5">共 {contracts.length} 份合約，{counts.active} 份進行中</p>
@@ -339,6 +342,13 @@ export default function Contracts() {
                   >
                     <Trash2 className="w-3 h-3" />刪除
                   </button>
+                  <AttachmentButton
+                    entityType="CONTRACT"
+                    entityId={c.id}
+                    title={`合約 ${c.tenant?.name ?? ''}・${c.unit?.property?.name ?? ''} ${c.unit?.unitNumber ?? ''}（紙本合約掃描、進場／退租車況照）`}
+                    count={files.summary[c.id]?.count}
+                    onChanged={files.refresh}
+                  />
                 </div>
 
                 {/* Terminated/Expired: show deposit button */}

@@ -5,6 +5,8 @@ import api from '../api/client';
 import { Property, Unit, Tenant, Contract } from '../types';
 import HowTo from '../components/HowTo';
 import SearchBox, { matches } from '../components/SearchBox';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary, AttachmentSummary } from '../lib/attachments';
 
 export default function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -17,6 +19,8 @@ export default function Properties() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VACANT' | 'OCCUPIED'>('ALL');
   const [loading, setLoading] = useState(true);
+  const propertyFiles = useAttachmentSummary('PROPERTY');
+  const unitFiles = useAttachmentSummary('UNIT');
   const navigate = useNavigate();
 
   useEffect(() => { fetchAll(); }, []);
@@ -62,7 +66,7 @@ export default function Properties() {
   return (
     <div className="px-6 py-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="page-header items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-800">車位管理</h1>
           <p className="text-xs text-gray-400 mt-0.5">管理停車場與車位資訊</p>
@@ -156,6 +160,8 @@ export default function Properties() {
               onAddUnit={() => { setSelectedProperty(property); setShowAddUnit(true); }}
               onEditUnit={(unit) => { setSelectedProperty(property); setEditUnit(unit); }}
               onRefresh={fetchAll}
+              files={{ property: propertyFiles.summary, units: unitFiles.summary }}
+              onFilesChanged={() => { propertyFiles.refresh(); unitFiles.refresh(); }}
             />
           ))}
         </div>
@@ -182,8 +188,10 @@ export default function Properties() {
 }
 
 function PropertyCard({
-  property, contracts, isSelected, onSelect, onDelete, onEdit, onAddUnit, onEditUnit, onRefresh
+  property, contracts, isSelected, onSelect, onDelete, onEdit, onAddUnit, onEditUnit, onRefresh, files, onFilesChanged
 }: {
+  files: { property: AttachmentSummary; units: AttachmentSummary };
+  onFilesChanged: () => void;
   onEdit: () => void;
   property: Property;
   contracts: Contract[];
@@ -209,10 +217,10 @@ function PropertyCard({
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
       {/* Property header */}
       <div
-        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-warm/50 transition-colors"
+        className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-5 py-4 cursor-pointer hover:bg-warm/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-[12rem]">
           <div className="w-9 h-9 bg-brand/10 rounded-xl flex items-center justify-center flex-shrink-0">
             <Building2 className="w-4 h-4 text-brand" />
           </div>
@@ -221,27 +229,35 @@ function PropertyCard({
             <div className="text-xs text-gray-400 mt-0.5">{property.address}</div>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-right">
+        <div className="flex items-center gap-3 text-right ml-auto">
           <div>
             <div className="text-xs text-gray-400">承租 {occupied}/{units.length} 間</div>
             {totalRent > 0 && <div className="text-xs font-medium text-brand">NT${totalRent.toLocaleString()}/月</div>}
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 items-center">
+            <AttachmentButton
+              compact
+              entityType="PROPERTY"
+              entityId={property.id}
+              title={`停車場 ${property.name}（場地照片、與地主的租約、平面圖等）`}
+              count={files.property[property.id]?.count}
+              onChanged={onFilesChanged}
+            />
             <button
               onClick={(e) => { e.stopPropagation(); onAddUnit(); }}
-              className="text-xs px-2 py-1 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+              className="whitespace-nowrap text-xs px-2 py-1 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
             >
               + 車位
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className="text-xs px-2 py-1 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="whitespace-nowrap text-xs px-2 py-1 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               編輯
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-xs px-2 py-1 text-red-400 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
+              className="whitespace-nowrap text-xs px-2 py-1 text-red-400 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
             >
               刪除
             </button>
@@ -262,12 +278,12 @@ function PropertyCard({
               {units.map((unit) => {
                 const activeContract = contracts.find((c) => c.unitId === unit.id && c.status === 'ACTIVE');
                 return (
-                  <div key={unit.id} className="flex items-center justify-between px-5 py-3 hover:bg-warm/30 transition-colors">
-                    <div className="flex items-center gap-3">
+                  <div key={unit.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 md:px-5 py-3 hover:bg-warm/30 transition-colors">
+                    <div className="flex items-center gap-3 flex-1 min-w-[12rem]">
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${unit.status === 'OCCUPIED' ? 'bg-green-400' : 'bg-gray-300'}`} />
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-700 text-sm">{unit.unitNumber}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-medium text-gray-700 text-sm whitespace-nowrap">{unit.unitNumber}</span>
                           {unit.floor && <span className="text-xs text-gray-400">{unit.floor}F</span>}
                           {unit.type && <span className="text-xs text-gray-400">{unit.type}</span>}
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${unit.status === 'OCCUPIED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -281,18 +297,26 @@ function PropertyCard({
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
+                    <div className="flex items-center gap-3 ml-auto">
+                      <div className="text-right whitespace-nowrap">
                         <div className="font-semibold text-gray-700 text-sm">NT${Number(unit.monthlyRent).toLocaleString()}</div>
                         {activeContract && (
                           <div className="text-xs text-gray-400">到期 {new Date(activeContract.endDate).toLocaleDateString('zh-TW')}</div>
                         )}
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => onEditUnit(unit)} className="text-xs px-2 py-1 border border-gray-200 rounded-lg text-gray-500 hover:border-brand hover:text-brand transition-colors">
+                      <div className="flex gap-1 items-center">
+                        <AttachmentButton
+                          compact
+                          entityType="UNIT"
+                          entityId={unit.id}
+                          title={`車位 ${property.name} ${unit.unitNumber}`}
+                          count={files.units[unit.id]?.count}
+                          onChanged={onFilesChanged}
+                        />
+                        <button onClick={() => onEditUnit(unit)} className="whitespace-nowrap text-xs px-2 py-1 border border-gray-200 rounded-lg text-gray-500 hover:border-brand hover:text-brand transition-colors">
                           編輯
                         </button>
-                        <button onClick={() => deleteUnit(unit.id)} className="text-xs px-2 py-1 border border-red-100 rounded-lg text-red-400 hover:bg-red-50 transition-colors">
+                        <button onClick={() => deleteUnit(unit.id)} className="whitespace-nowrap text-xs px-2 py-1 border border-red-100 rounded-lg text-red-400 hover:bg-red-50 transition-colors">
                           刪除
                         </button>
                       </div>

@@ -85,7 +85,7 @@ export default function Settings() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">設定</h1>
         <Link to="/accounts" className="flex items-center gap-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-brand hover:text-brand">
           <Shield className="w-3.5 h-3.5" />帳號權限<ChevronRight className="w-3.5 h-3.5" />

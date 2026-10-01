@@ -35,7 +35,7 @@ export default function Dashboard() {
   return (
     <div className="h-full flex flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+      <div className="page-header items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
         <h1 className="text-xl font-bold text-gray-800">總覽</h1>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowCalendar(true)} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-brand hover:text-brand transition-colors">

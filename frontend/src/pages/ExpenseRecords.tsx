@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { Expense, Property } from '../types';
 import HowTo from '../components/HowTo';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 import SearchBox, { matches } from '../components/SearchBox';
 
 const EXPENSE_LABELS: Record<string, string> = {
@@ -20,6 +22,7 @@ export default function ExpenseRecords() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
+  const files = useAttachmentSummary('EXPENSE');
   const [category, setCategory] = useState('ALL');
   const [search, setSearch] = useState('');
   const [properties, setProperties] = useState<Property[]>([]);
@@ -47,7 +50,7 @@ export default function ExpenseRecords() {
 
   return (
     <div className="px-6 py-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">支出記錄</h1>
           <p className="text-xs text-gray-400 mt-0.5">{year} 年 {month} 月管理費、維修費等支出</p>
@@ -123,7 +126,15 @@ export default function ExpenseRecords() {
                   <td className="px-4 py-3 text-gray-500">{new Date(e.date).toLocaleDateString('zh-TW')}</td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-700">NT${Number(e.amount).toLocaleString()}</td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <button onClick={() => setEditing(e)} className="text-xs text-gray-500 hover:text-gray-700 mr-3">編輯</button>
+                    <AttachmentButton
+                      compact
+                      entityType="EXPENSE"
+                      entityId={e.id}
+                      title={`支出 ${EXPENSE_LABELS[e.category] ?? e.category}・NT$${Number(e.amount).toLocaleString()}・${new Date(e.date).toLocaleDateString('zh-TW')}（發票、收據，報稅用）`}
+                      count={files.summary[e.id]?.count}
+                      onChanged={files.refresh}
+                    />
+                    <button onClick={() => setEditing(e)} className="text-xs text-gray-500 hover:text-gray-700 mx-3">編輯</button>
                     <button onClick={() => deleteExpense(e.id)} className="text-xs text-red-400 hover:text-red-600">刪除</button>
                   </td>
                 </tr>

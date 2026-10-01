@@ -38,10 +38,31 @@ const creditController_1 = require("../controllers/creditController");
 const rentCompsController_1 = require("../controllers/rentCompsController");
 const tenantAuthController_1 = require("../controllers/tenantAuthController");
 const tenantPortalController_1 = require("../controllers/tenantPortalController");
+const attachmentController_1 = require("../controllers/attachmentController");
 const router = (0, express_1.Router)();
+// 任何刪除成功（含清空資料）後，清掉掛在已不存在資料上的附件檔
+router.use((req, res, next) => {
+    if (req.method === 'DELETE' || req.path === '/data/wipe') {
+        res.on('finish', () => {
+            if (res.statusCode < 300 && req.userId && !req.path.startsWith('/attachments')) {
+                (0, attachmentController_1.purgeOrphanAttachments)(req.userId).catch((e) => console.error('[attachments purge]', e));
+            }
+        });
+    }
+    next();
+});
+// 附件（照片／檔案）。權限依附件所屬對象在 controller 內檢查。
+router.get('/attachments', auth_1.requireAuth, attachmentController_1.listAttachments);
+router.get('/attachments/summary', auth_1.requireAuth, attachmentController_1.attachmentSummary);
+router.get('/attachments/categories', auth_1.requireAuth, attachmentController_1.getCategories);
+router.post('/attachments', auth_1.requireAuth, attachmentController_1.uploadAttachment);
+router.get('/attachments/:id/file', auth_1.requireAuth, attachmentController_1.downloadAttachment);
+router.put('/attachments/:id', auth_1.requireAuth, attachmentController_1.updateAttachment);
+router.delete('/attachments/:id', auth_1.requireAuth, attachmentController_1.deleteAttachment);
 // Auth
 router.post('/auth/register', authController_1.register);
 router.post('/auth/login', authController_1.login);
+router.get('/auth/demo', authController_1.demoAccount);
 router.get('/auth/me', auth_1.requireAuth, authController_1.me);
 router.put('/auth/me', auth_1.requireAuth, authController_1.updateMe);
 // 帳號權限管理（僅管理員）

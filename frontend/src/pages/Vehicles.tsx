@@ -4,6 +4,8 @@ import api from '../api/client';
 import HowTo from '../components/HowTo';
 import SearchBox from '../components/SearchBox';
 import VehicleForm, { VehicleLike, VEHICLE_TYPE } from '../components/VehicleForm';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 
 interface Row extends VehicleLike {
   tenant: { id: string; name: string; phone: string };
@@ -17,7 +19,10 @@ export default function Vehicles() {
   const [tenants, setTenants] = useState<{ id: string; name: string; phone: string }[]>([]);
   const [q, setQ] = useState('');
   const [type, setType] = useState<'ALL' | VehicleLike['type']>('ALL');
-  const [status, setStatus] = useState<'ALL' | 'OVERDUE' | 'NOSPACE'>('ALL');
+  const [status, setStatus] = useState<'ALL' | 'OVERDUE' | 'NOSPACE' | 'NOLICENSE'>('ALL');
+  const files = useAttachmentSummary('VEHICLE');
+  // 有在租車位卻還沒上傳行照：無法核對車籍，轉租或人頭車時沒有依據
+  const lacksLicense = (v: Row) => v.spaces.length > 0 && !files.summary[v.id]?.categories.includes('行照');
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<VehicleLike | 'new' | null>(null);
 
@@ -37,11 +42,11 @@ export default function Vehicles() {
 
   const shown = rows.filter((r) =>
     (type === 'ALL' || r.type === type)
-    && (status === 'ALL' || (status === 'OVERDUE' ? r.overdueCount > 0 : r.spaces.length === 0)));
+    && (status === 'ALL' || (status === 'OVERDUE' ? r.overdueCount > 0 : status === 'NOLICENSE' ? lacksLicense(r) : r.spaces.length === 0)));
 
   return (
     <div className="px-6 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">車牌查詢</h1>
           <p className="text-xs text-gray-400 mt-0.5">輸入車牌就知道是誰的車、停哪個車位、這個月繳了沒</p>
@@ -61,7 +66,7 @@ export default function Vehicles() {
           ))}
         </div>
         <div className="flex gap-1 bg-white rounded-xl p-1 border border-gray-100">
-          {([['ALL', '全部'], ['OVERDUE', '有欠費'], ['NOSPACE', '沒有車位']] as const).map(([k, l]) => (
+          {([['ALL', '全部'], ['OVERDUE', '有欠費'], ['NOSPACE', '沒有車位'], ['NOLICENSE', '缺行照']] as const).map(([k, l]) => (
             <button key={k} onClick={() => setStatus(k)} className={`px-3 py-1 rounded-lg text-xs font-medium ${status === k ? 'bg-brand text-white' : 'text-gray-500'}`}>{l}</button>
           ))}
         </div>
@@ -105,11 +110,21 @@ export default function Vehicles() {
                     <span>到期 {new Date(s.endDate).toLocaleDateString('zh-TW')}</span>
                   </div>
                 ))}
-                <div className="mt-2">
-                  {v.overdueCount > 0
-                    ? <span className="badge-overdue">欠繳 {v.overdueCount} 期</span>
-                    : v.paidThisMonth ? <span className="badge-paid">本月已繳</span>
-                    : v.spaces.length ? <span className="badge-pending">本月未繳</span> : null}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div>
+                    {v.overdueCount > 0
+                      ? <span className="badge-overdue">欠繳 {v.overdueCount} 期</span>
+                      : v.paidThisMonth ? <span className="badge-paid">本月已繳</span>
+                      : v.spaces.length ? <span className="badge-pending">本月未繳</span> : null}
+                  </div>
+                  <AttachmentButton
+                    entityType="VEHICLE"
+                    entityId={v.id}
+                    title={`車牌 ${v.plateNumber}・${v.tenant.name}`}
+                    count={files.summary[v.id]?.count}
+                    missing={lacksLicense(v) ? '行照' : undefined}
+                    onChanged={files.refresh}
+                  />
                 </div>
               </div>
             );

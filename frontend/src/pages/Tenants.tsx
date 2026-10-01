@@ -4,6 +4,8 @@ import api from '../api/client';
 import { Tenant, Property, Contract, RentRecord } from '../types';
 import HowTo from '../components/HowTo';
 import VehicleForm, { VehicleLike, VEHICLE_TYPE } from '../components/VehicleForm';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 
 type FilterType = 'all' | 'active' | 'no_contract' | 'line_bound';
 
@@ -27,6 +29,7 @@ export default function Tenants() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [historyTenant, setHistoryTenant] = useState<Tenant | null>(null);
+  const files = useAttachmentSummary('TENANT');
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
@@ -91,7 +94,7 @@ export default function Tenants() {
   return (
     <div className="px-6 py-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">車主管理</h1>
           <p className="text-xs text-gray-400 mt-0.5">共 {tenants.length} 位車主</p>
@@ -224,6 +227,13 @@ export default function Tenants() {
                   >
                     <History className="w-3.5 h-3.5" />繳費紀錄
                   </button>
+                  <AttachmentButton
+                    entityType="TENANT"
+                    entityId={tenant.id}
+                    title={`車主 ${tenant.name}・${tenant.phone}`}
+                    count={files.summary[tenant.id]?.count}
+                    onChanged={files.refresh}
+                  />
                   <button
                     onClick={() => setEditTenant(tenant)}
                     className="flex-1 text-xs text-center py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:border-brand hover:text-brand transition-colors"

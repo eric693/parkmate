@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../app';
 import { AuthRequest } from '../middleware/auth';
+import { config } from '../config';
 
 const publicUser = {
   id: true, email: true, name: true, role: true, permissions: true, ownerId: true, createdAt: true,
@@ -86,6 +87,11 @@ export async function me(req: AuthRequest, res: Response) {
 }
 
 /** 修改自己的登入帳號、名稱或密碼（需驗證目前密碼） */
+/** 登入頁用：回傳公開的示範帳號，未設定則回 null */
+export function demoAccount(_req: Request, res: Response) {
+  res.json(config.demo.enabled ? { account: config.demo.account, password: config.demo.password } : null);
+}
+
 export async function updateMe(req: AuthRequest, res: Response) {
   const user = await prisma.user.findUnique({ where: { id: req.authUserId! } });
   if (!user) { res.status(404).json({ error: '找不到帳號' }); return; }
@@ -93,6 +99,11 @@ export async function updateMe(req: AuthRequest, res: Response) {
   const { name, currentPassword, newPassword } = req.body;
   const account = req.body.email !== undefined ? normalizeAccount(req.body.email) : undefined;
   const changingCredentials = (account && account !== user.email) || newPassword;
+  // 示範帳密公開在登入頁，被改掉其他訪客就登不進來
+  if (changingCredentials && config.demo.enabled && user.email === config.demo.account) {
+    res.status(403).json({ error: '示範帳號不能修改帳號或密碼' });
+    return;
+  }
   if (changingCredentials && !(await bcrypt.compare(String(currentPassword ?? ''), user.password))) {
     res.status(400).json({ error: '目前密碼不正確' });
     return;

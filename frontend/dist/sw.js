@@ -2,7 +2,7 @@
 // 策略：App Shell 走 cache-first（安裝時預快取），API 一律 network-only。
 // 帳務資料不做離線快取——顯示過期的餘額或收款狀態比顯示不出來更危險。
 
-const VERSION = 'parkmate-v1';
+const VERSION = 'parkmate-v2';
 const SHELL = [
   '/',
   '/manifest.webmanifest',

@@ -85,7 +85,7 @@ export default function Finance() {
   return (
     <div className="px-6 py-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">財務總覽</h1>
           <p className="text-xs text-gray-400 mt-0.5">{year} 年 {month} 月的收支彙整與趨勢分析</p>

@@ -3,6 +3,8 @@ import { AlertTriangle, RefreshCw, Plus, Pencil, Trash2 } from 'lucide-react';
 import api from '../api/client';
 import { RentRecord } from '../types';
 import HowTo from '../components/HowTo';
+import { AttachmentButton } from '../components/AttachmentModal';
+import { useAttachmentSummary } from '../lib/attachments';
 import SearchBox, { matches } from '../components/SearchBox';
 import RentRecordForm, { ContractOption, RentRecordLike } from '../components/RentRecordForm';
 
@@ -13,6 +15,7 @@ export default function RentManagement() {
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [confirmModal, setConfirmModal] = useState<RentRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const files = useAttachmentSummary('RENT_RECORD');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [markingOverdue, setMarkingOverdue] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -89,12 +92,12 @@ export default function RentManagement() {
           {toast}
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">租金管理</h1>
           <p className="text-xs text-gray-400 mt-0.5">{year} 年 {month} 月租金收款狀況</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap md:justify-end">
           <button onClick={openCreate} className="flex items-center gap-1.5 text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-brand-dark">
             <Plus className="w-3.5 h-3.5" />新增租金單
           </button>
@@ -118,18 +121,18 @@ export default function RentManagement() {
       <HowTo module="rent" />
 
       {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-3 mb-5">
+        <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 min-w-0">
           <div className="text-xs text-gray-400 mb-1">應收總額</div>
-          <div className="text-lg font-bold text-gray-800">NT${totalRent.toLocaleString()}</div>
+          <div className="text-sm sm:text-base md:text-lg font-bold text-gray-800">NT${totalRent.toLocaleString()}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 min-w-0">
           <div className="text-xs text-gray-400 mb-1">已收金額</div>
-          <div className="text-lg font-bold text-brand">NT${collectedRent.toLocaleString()}</div>
+          <div className="text-sm sm:text-base md:text-lg font-bold text-brand">NT${collectedRent.toLocaleString()}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 min-w-0">
           <div className="text-xs text-gray-400 mb-1">逾期筆數</div>
-          <div className={`text-lg font-bold ${overdueCount > 0 ? 'text-red-500' : 'text-gray-800'}`}>{overdueCount} 筆</div>
+          <div className={`text-sm sm:text-base md:text-lg font-bold ${overdueCount > 0 ? 'text-red-500' : 'text-gray-800'}`}>{overdueCount} 筆</div>
         </div>
       </div>
 
@@ -190,6 +193,14 @@ export default function RentManagement() {
                     )}
                   </td>
                   <td className="pr-3 py-3 whitespace-nowrap text-right">
+                    <AttachmentButton
+                      compact
+                      entityType="RENT_RECORD"
+                      entityId={r.id}
+                      title={`${r.year}/${r.month} 月租・${r.contract?.tenant?.name ?? ''} ${r.contract?.unit?.unitNumber ?? ''}（轉帳截圖、收據）`}
+                      count={files.summary[r.id]?.count}
+                      onChanged={files.refresh}
+                    />
                     <button onClick={() => setForm({ record: r as unknown as RentRecordLike })} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="編輯">
                       <Pencil className="w-3.5 h-3.5 text-gray-500" />
                     </button>

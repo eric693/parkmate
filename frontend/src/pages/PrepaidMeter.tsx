@@ -81,7 +81,7 @@ export default function PrepaidMeter() {
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">預付電費</h1>
           <p className="text-xs text-gray-400 mt-0.5">
