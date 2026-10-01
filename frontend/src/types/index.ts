@@ -24,12 +24,43 @@ export interface Unit {
   id: string;
   propertyId: string;
   unitNumber: string;
-  floor?: number;
-  type?: string;
+  floor?: number | null;
+  type?: string | null;
   monthlyRent: number;
   status: 'VACANT' | 'OCCUPIED';
+  vehicleKind?: VehicleKind | null;
+  spotType?: SpotType | null;
+  maxHeightCm?: number | null;
+  maxWidthCm?: number | null;
+  hasCharger?: boolean;
+  dailyRate?: number | string | null;
+  weeklyRate?: number | string | null;
   contracts?: Contract[];
   maintenanceRequests?: MaintenanceRequest[];
+}
+
+export type VehicleKind = 'CAR' | 'MOTORCYCLE' | 'OTHER';
+export type SpotType = 'FLAT' | 'MECHANICAL_UPPER' | 'MECHANICAL_LOWER' | 'OTHER';
+export type BillingCycle = 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUAL' | 'ANNUAL' | 'SHORT_TERM';
+
+export interface WaitlistEntry {
+  id: string;
+  propertyId?: string | null;
+  tenantId?: string | null;
+  name: string;
+  phone: string;
+  vehicleKind?: VehicleKind | null;
+  spotType?: SpotType | null;
+  needCharger: boolean;
+  vehicleHeightCm?: number | null;
+  notes?: string | null;
+  status: 'WAITING' | 'NOTIFIED' | 'FULFILLED' | 'CANCELLED';
+  notifiedAt?: string | null;
+  createdAt: string;
+  property?: { id: string; name: string } | null;
+  tenant?: { id: string; name: string; lineBound: boolean } | null;
+  notifiedUnit?: { id: string; unitNumber: string; property: { name: string } } | null;
+  matchingUnits: Array<{ id: string; unitNumber: string; propertyName: string; monthlyRent: number | string }>;
 }
 
 export interface Tenant {
@@ -58,6 +89,8 @@ export interface Contract {
   depositAmount: number;
   depositPaid: boolean;
   rentDueDay: number;
+  billingCycle?: BillingCycle;
+  periodAmount?: number | string | null;
   status: 'ACTIVE' | 'EXPIRED' | 'TERMINATED';
   notes?: string;
   vehicleId?: string | null;

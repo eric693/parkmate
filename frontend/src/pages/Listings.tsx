@@ -6,6 +6,8 @@ import {
 import api from '../api/client';
 import HowTo from '../components/HowTo';
 import SearchBox, { matches } from '../components/SearchBox';
+import type { Unit } from '../types';
+import { SPOT_TYPE_LABEL, VEHICLE_KIND_LABEL, floorLabel, unitSpecLabels } from '../lib/parking';
 
 interface ListingRecord {
   id: string;
@@ -17,11 +19,9 @@ interface ListingRecord {
   expiresAt?: string;
 }
 
-interface VacantUnit {
+interface VacantUnit extends Pick<Unit, 'floor' | 'type' | 'vehicleKind' | 'spotType' | 'maxHeightCm' | 'maxWidthCm' | 'hasCharger' | 'dailyRate' | 'weeklyRate'> {
   id: string;
   unitNumber: string;
-  floor?: number;
-  type?: string;
   monthlyRent: number;
   description?: string;
   propertyName: string;
@@ -38,18 +38,28 @@ const PLATFORMS = [
 ];
 
 function generateCopy(unit: VacantUnit): string {
+  const kind = [unit.vehicleKind ? VEHICLE_KIND_LABEL[unit.vehicleKind] : '', unit.spotType ? SPOT_TYPE_LABEL[unit.spotType] : unit.type ?? '']
+    .filter(Boolean).join('・');
+  const limits = [unit.maxHeightCm ? `限高 ${unit.maxHeightCm} 公分` : '', unit.maxWidthCm ? `限寬 ${unit.maxWidthCm} 公分` : ''].filter(Boolean).join('、');
+  const shortRates = [
+    unit.dailyRate ? `日租 NT$${Number(unit.dailyRate).toLocaleString()}` : '',
+    unit.weeklyRate ? `週租 NT$${Number(unit.weeklyRate).toLocaleString()}` : '',
+  ].filter(Boolean).join('／');
   const lines = [
-    `🏠【出租】${unit.propertyName} ${unit.unitNumber}`,
+    `🅿️【車位出租】${unit.propertyName} ${unit.unitNumber}`,
     ``,
     `📍 地址：${unit.propertyAddress}`,
-    unit.floor ? `🏢 樓層：${unit.floor} 樓` : '',
-    unit.type ? `🛋 格局：${unit.type}` : '',
-    `💰 月租：NT$${Number(unit.monthlyRent).toLocaleString()}（含管理費）`,
+    unit.floor != null ? `🏢 樓層：${floorLabel(unit.floor)}` : '',
+    kind ? `🚗 車位：${kind}` : '',
+    limits ? `📏 ${limits}` : '',
+    unit.hasCharger ? `⚡ 附電動車充電樁` : '',
+    `💰 月租：NT$${Number(unit.monthlyRent).toLocaleString()}（季繳、年繳另有優惠可談）`,
+    shortRates ? `🕐 短租：${shortRates}` : '',
     ``,
     `✅ 特色：`,
-    `  • 近捷運站，交通便利`,
-    `  • 環境整潔，管理良好`,
-    `  • 即租即住`,
+    `  • 固定車位，不用每天找位子`,
+    `  • 遙控器／感應卡進出`,
+    `  • 隨時可起租`,
     unit.description ? `\n📝 備注：${unit.description}` : '',
     ``,
     `📞 請私訊洽詢，謝謝！`,
@@ -183,12 +193,9 @@ export default function Listings() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-gray-800">{unit.unitNumber}</span>
-                          {unit.type && (
-                            <span className="text-xs bg-brand/10 text-brand px-2 py-0.5 rounded-full">{unit.type}</span>
-                          )}
-                          {unit.floor && (
-                            <span className="text-xs text-gray-400">{unit.floor} 樓</span>
-                          )}
+                          {unitSpecLabels(unit).map((l) => (
+                            <span key={l} className="text-xs bg-brand/10 text-brand px-2 py-0.5 rounded-full">{l}</span>
+                          ))}
                           <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">空位</span>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">

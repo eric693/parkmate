@@ -9,6 +9,7 @@ const app_1 = require("../app");
 const lineService_1 = require("../services/lineService");
 const reminderService_1 = require("../services/reminderService");
 const dates_1 = require("../utils/dates");
+const rentService_1 = require("../services/rentService");
 function startReminderJobs() {
     // Daily at 9:00 AM — mark overdue + smart reminders + contract expiry
     node_cron_1.default.schedule('0 9 * * *', async () => {
@@ -105,11 +106,13 @@ async function generateNewMonthRentRecords() {
         where: { status: 'ACTIVE', endDate: { gte: now } },
     });
     for (const contract of contracts) {
-        const dueDate = (0, dates_1.rentDueDate)(year, month, contract.rentDueDay);
+        const bill = (0, rentService_1.billingFor)(contract, year, month);
+        if (!bill)
+            continue;
         await app_1.prisma.rentRecord.upsert({
             where: { contractId_year_month: { contractId: contract.id, year, month } },
             update: {},
-            create: { contractId: contract.id, year, month, dueDate, amount: contract.monthlyRent, status: 'PENDING' },
+            create: { contractId: contract.id, year, month, dueDate: bill.dueDate, amount: bill.amount, status: 'PENDING' },
         });
     }
     console.log(`Generated rent records for ${year}/${month}`);

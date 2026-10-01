@@ -30,6 +30,7 @@ model User {
 
   properties        Property[]
   tenants           Tenant[]
+  waitlistEntries   WaitlistEntry[]
   lineBinding       LineBinding?
   reminderSetting   ReminderSetting?
   notificationRules NotificationRule[]
@@ -46,10 +47,11 @@ model Property {
   purchasePrice Decimal? @db.Decimal(14, 2)
   createdAt     DateTime @default(now())
 
-  user         User          @relation(fields: [userId], references: [id])
+  user         User            @relation(fields: [userId], references: [id])
   units        Unit[]
   expenses     Expense[]
   utilityBills UtilityBill[]
+  waitlist     WaitlistEntry[]
 }
 
 model Unit {
@@ -65,6 +67,15 @@ model Unit {
   description String?
   createdAt   DateTime   @default(now())
 
+  // 停車位規格（type 為舊版自由文字，保留顯示用）
+  vehicleKind VehicleType? // 汽車位／機車位
+  spotType    SpotType?
+  maxHeightCm Int? // 限高（公分），機械車位常見
+  maxWidthCm  Int? // 限寬（公分）
+  hasCharger  Boolean      @default(false) // 有充電樁
+  dailyRate   Decimal?     @db.Decimal(10, 2) // 短租日租價
+  weeklyRate  Decimal?     @db.Decimal(10, 2) // 短租週租價
+
   // 預付電表（儲值制）。prepaidEnabled=false 時整組欄位不參與任何計算與告警。
   prepaidEnabled      Boolean   @default(false)
   prepaidBalance      Decimal   @default(0) @db.Decimal(10, 2) // 目前餘額（元）
@@ -78,6 +89,13 @@ model Unit {
   listings            ListingRecord[]
   utilityAllocations  UtilityAllocation[]
   prepaidRecords      PrepaidRecord[]
+}
+
+enum SpotType {
+  FLAT // 平面
+  MECHANICAL_UPPER // 機械上層
+  MECHANICAL_LOWER // 機械下層
+  OTHER
 }
 
 enum UnitStatus {
@@ -105,6 +123,7 @@ model Tenant {
   maintenanceRequests MaintenanceRequest[]
   creditSnapshot      TenantCreditSnapshot?
   vehicles            Vehicle[]
+  waitlistEntries     WaitlistEntry[]
 }
 
 // ── 停車位月租：車主的車輛 ─────────────────────────────────────────
@@ -142,6 +161,10 @@ model Contract {
   depositPaid   Boolean        @default(false)
   rentDueDay    Int            @default(5)
   status        ContractStatus @default(ACTIVE)
+  // 繳費週期。季／半年／年繳每期開一張單；SHORT_TERM（日租、週租）整段一次收清。
+  billingCycle  BillingCycle   @default(MONTHLY)
+  // 每期應收金額（季繳折扣後、短租總額）。null = 月租 × 期數。
+  periodAmount  Decimal?       @db.Decimal(10, 2)
   notes         String?
   signToken     String?        @unique
   signedAt      DateTime?
@@ -204,6 +227,14 @@ enum DepositRefundStatus {
   PENDING
   PROCESSING
   COMPLETED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+  SHORT_TERM
 }
 
 enum ContractStatus {
@@ -573,4 +604,36 @@ model Attachment {
 
   @@index([userId, entityType, entityId])
   @@index([userId, category])
+}
+
+// ── 候補名單：車位滿了先登記，空出來時依順位通知 ─────────────────────
+enum WaitlistStatus {
+  WAITING // 排隊中
+  NOTIFIED // 已通知有空位，等回覆
+  FULFILLED // 已承租
+  CANCELLED // 取消
+}
+
+model WaitlistEntry {
+  id              String         @id @default(cuid())
+  userId          String
+  propertyId      String? // null = 任何停車場都可以
+  tenantId        String? // 已建檔車主（綁 LINE 才能自動通知）
+  name            String
+  phone           String
+  vehicleKind     VehicleType?
+  spotType        SpotType?
+  needCharger     Boolean        @default(false)
+  vehicleHeightCm Int? // 車高，比對機械車位限高
+  notes           String?
+  status          WaitlistStatus @default(WAITING)
+  notifiedAt      DateTime?
+  notifiedUnitId  String? // 通知時空出的車位
+  createdAt       DateTime       @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
 }

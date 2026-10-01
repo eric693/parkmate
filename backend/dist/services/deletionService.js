@@ -107,5 +107,6 @@ async function wipeUserData(userId) {
         await deleteProperties(tx, propertyIds, { dropPayments: true });
         const tenantIds = (await tx.tenant.findMany({ where: { userId }, select: { id: true } })).map((t) => t.id);
         await deleteTenants(tx, tenantIds, { dropPayments: true });
+        await tx.waitlistEntry.deleteMany({ where: { userId } });
     }, { timeout: 120000 });
 }

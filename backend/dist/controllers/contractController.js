@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkCompliance = checkCompliance;
+exports.shortTermDays = shortTermDays;
+exports.shortTermQuote = shortTermQuote;
 exports.getContracts = getContracts;
 exports.createContract = createContract;
 exports.updateContract = updateContract;
@@ -12,6 +14,7 @@ exports.getContractByToken = getContractByToken;
 exports.signContractByToken = signContractByToken;
 const app_1 = require("../app");
 const rentService_1 = require("../services/rentService");
+const waitlistService_1 = require("../services/waitlistService");
 const lineService_1 = require("../services/lineService");
 const aiService_1 = require("../services/aiService");
 const crypto_1 = __importDefault(require("crypto"));
@@ -46,6 +49,23 @@ async function tenantVehicleId(tenantId, vehicleId) {
     const v = await app_1.prisma.vehicle.findFirst({ where: { id: String(vehicleId), tenantId } });
     return v?.id ?? null;
 }
+const BILLING_CYCLES = ['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL', 'SHORT_TERM'];
+/** 短租天數（含頭尾）。日期字串都是 YYYY-MM-DD，存成 UTC 午夜。 */
+function shortTermDays(start, end) {
+    return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+/** 依車位的日租／週租價估短租總額；沒設價格回傳 null */
+function shortTermQuote(unit, days) {
+    const daily = unit.dailyRate != null ? Number(unit.dailyRate) : null;
+    const weekly = unit.weeklyRate != null ? Number(unit.weeklyRate) : null;
+    if (weekly != null) {
+        const rest = days % 7;
+        const restCost = rest === 0 ? 0 : daily != null ? Math.min(rest * daily, weekly) : weekly;
+        return Math.floor(days / 7) * weekly + restCost;
+    }
+    return daily != null ? days * daily : null;
+}
+const optAmount = (v) => (v === undefined ? undefined : v === '' || v === null ? null : Number(v));
 async function getContracts(req, res) {
     const userId = req.userId;
     const { status } = req.query;
@@ -71,7 +91,13 @@ async function getContracts(req, res) {
 }
 async function createContract(req, res) {
     const { unitId, tenantId, startDate, endDate, monthlyRent, depositAmount, depositPaid, rentDueDay, notes, vehicleId, accessCard, accessCardDeposit } = req.body;
-    if (!unitId || !tenantId || !startDate || !endDate || !monthlyRent) {
+    const billingCycle = req.body.billingCycle || 'MONTHLY';
+    if (!BILLING_CYCLES.includes(billingCycle)) {
+        res.status(400).json({ error: '繳費週期不正確' });
+        return;
+    }
+    const shortTerm = billingCycle === 'SHORT_TERM';
+    if (!unitId || !tenantId || !startDate || !endDate || (!monthlyRent && !shortTerm)) {
         res.status(400).json({ error: '請填寫所有必填欄位' });
         return;
     }
@@ -85,9 +111,9 @@ async function createContract(req, res) {
         res.status(404).json({ error: '找不到車主' });
         return;
     }
-    // 表單送來的數字是字串，空字串代表沒填
-    const rent = Number(monthlyRent);
-    const deposit = depositAmount === undefined || depositAmount === '' ? rent * 2 : Number(depositAmount);
+    // 表單送來的數字是字串，空字串代表沒填。短租沒填月租時以車位月租當參考值。
+    const rent = monthlyRent === undefined || monthlyRent === '' ? Number(unit.monthlyRent) : Number(monthlyRent);
+    const deposit = depositAmount === undefined || depositAmount === '' ? (shortTerm ? 0 : rent * 2) : Number(depositAmount);
     const dueDay = rentDueDay === undefined || rentDueDay === '' ? 5 : Number(rentDueDay);
     if (!(rent > 0) || !(deposit >= 0)) {
         res.status(400).json({ error: '租金或押金金額不正確' });
@@ -97,8 +123,22 @@ async function createContract(req, res) {
         res.status(400).json({ error: '每月繳租日需為 1～31' });
         return;
     }
-    if (new Date(endDate) <= new Date(startDate)) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // 短租可以只租一天（開始 = 結束）
+    if (shortTerm ? end < start : end <= start) {
         res.status(400).json({ error: '結束日期需晚於開始日期' });
+        return;
+    }
+    let periodAmount = optAmount(req.body.periodAmount) ?? null;
+    if (shortTerm && periodAmount === null)
+        periodAmount = shortTermQuote(unit, shortTermDays(start, end));
+    if (shortTerm && periodAmount === null) {
+        res.status(400).json({ error: '短租請填寫總金額，或先在車位設定日租／週租價' });
+        return;
+    }
+    if (periodAmount !== null && !(periodAmount > 0)) {
+        res.status(400).json({ error: '每期金額需大於 0' });
         return;
     }
     const contract = await app_1.prisma.contract.create({
@@ -111,6 +151,8 @@ async function createContract(req, res) {
             depositAmount: deposit,
             depositPaid: depositPaid ?? false,
             rentDueDay: dueDay,
+            billingCycle,
+            periodAmount,
             notes: notes || null,
             vehicleId: await tenantVehicleId(tenant.id, vehicleId),
             accessCard: accessCard || null,
@@ -137,6 +179,20 @@ async function updateContract(req, res) {
         res.status(400).json({ error: '每月繳租日需為 1～31' });
         return;
     }
+    const billingCycle = req.body.billingCycle || undefined;
+    if (billingCycle && !BILLING_CYCLES.includes(billingCycle)) {
+        res.status(400).json({ error: '繳費週期不正確' });
+        return;
+    }
+    const periodAmount = optAmount(req.body.periodAmount);
+    if (periodAmount != null && !(periodAmount > 0)) {
+        res.status(400).json({ error: '每期金額需大於 0' });
+        return;
+    }
+    if ((billingCycle ?? contract.billingCycle) === 'SHORT_TERM' && periodAmount === null) {
+        res.status(400).json({ error: '短租請填寫總金額' });
+        return;
+    }
     const updated = await app_1.prisma.contract.update({
         where: { id },
         data: {
@@ -146,6 +202,8 @@ async function updateContract(req, res) {
             monthlyRent: monthlyRent !== undefined && monthlyRent !== '' ? Number(monthlyRent) : undefined,
             depositAmount: depositAmount !== undefined && depositAmount !== '' ? Number(depositAmount) : undefined,
             rentDueDay: dueDay,
+            billingCycle,
+            periodAmount,
             vehicleId: vehicleId === undefined ? undefined : await tenantVehicleId(contract.tenantId, vehicleId),
             accessCard: accessCard === undefined ? undefined : accessCard || null,
             accessCardDeposit: accessCardDeposit === undefined ? undefined : accessCardDeposit === '' || accessCardDeposit === null ? null : Number(accessCardDeposit),
@@ -154,6 +212,18 @@ async function updateContract(req, res) {
     });
     if (status === 'TERMINATED' || status === 'EXPIRED') {
         await app_1.prisma.unit.update({ where: { id: contract.unitId }, data: { status: 'VACANT' } });
+        await (0, waitlistService_1.onUnitVacated)(contract.unitId);
+    }
+    else if (updated.status === 'ACTIVE') {
+        // 繳費方式或期間變了：還沒到期、沒收過錢的租金單依新規則重開
+        const billingChanged = updated.billingCycle !== contract.billingCycle
+            || String(updated.periodAmount) !== String(contract.periodAmount)
+            || Number(updated.monthlyRent) !== Number(contract.monthlyRent)
+            || updated.rentDueDay !== contract.rentDueDay
+            || updated.startDate.getTime() !== contract.startDate.getTime()
+            || updated.endDate.getTime() !== contract.endDate.getTime();
+        if (billingChanged)
+            await (0, rentService_1.regenerateFutureRentRecords)(id);
     }
     res.json(updated);
 }

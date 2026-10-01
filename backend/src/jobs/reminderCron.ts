@@ -2,7 +2,8 @@ import cron from 'node-cron';
 import { prisma } from '../app';
 import { sendLandlordMessage, sendTenantMessage } from '../services/lineService';
 import { runDailyReminders } from '../services/reminderService';
-import { rentDueDate, startOfTodayTaipei } from '../utils/dates';
+import { startOfTodayTaipei } from '../utils/dates';
+import { billingFor } from '../services/rentService';
 
 export function startReminderJobs() {
   // Daily at 9:00 AM — mark overdue + smart reminders + contract expiry
@@ -124,11 +125,12 @@ async function generateNewMonthRentRecords() {
   });
 
   for (const contract of contracts) {
-    const dueDate = rentDueDate(year, month, contract.rentDueDay);
+    const bill = billingFor(contract, year, month);
+    if (!bill) continue;
     await prisma.rentRecord.upsert({
       where: { contractId_year_month: { contractId: contract.id, year, month } },
       update: {},
-      create: { contractId: contract.id, year, month, dueDate, amount: contract.monthlyRent, status: 'PENDING' },
+      create: { contractId: contract.id, year, month, dueDate: bill.dueDate, amount: bill.amount, status: 'PENDING' },
     });
   }
   console.log(`Generated rent records for ${year}/${month}`);

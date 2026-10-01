@@ -25,6 +25,7 @@ import {
   Menu,
   X,
   MoreHorizontal,
+  ListOrdered,
 } from 'lucide-react';
 
 const FINANCE_ITEMS = [
@@ -119,7 +120,8 @@ export default function Layout() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
           {can(user, 'dashboard') && <SidebarLink to="/" label="總覽" icon={LayoutDashboard} exact />}
-          {can(user, 'properties') && <SidebarLink to="/properties" label="車位" icon={Building2} />}
+          {can(user, 'properties') && <SidebarLink to="/properties" label="車位" icon={Building2} exact />}
+          {can(user, 'properties') && <SidebarLink to="/properties/waitlist" label="候補名單" icon={ListOrdered} />}
           {can(user, 'tenants') && <SidebarLink to="/tenants" label="車主" icon={Users} />}
           {can(user, 'tenants') && <SidebarLink to="/vehicles" label="車牌查詢" icon={Car} />}
 

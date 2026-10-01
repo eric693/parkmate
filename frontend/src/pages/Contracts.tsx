@@ -10,6 +10,8 @@ import HowTo from '../components/HowTo';
 import { AttachmentButton } from '../components/AttachmentModal';
 import { useAttachmentSummary } from '../lib/attachments';
 import { FEATURES } from '../lib/features';
+import { BILLING_CYCLE_LABEL, CYCLE_MONTHS, billingSummary, shortTermDays, shortTermQuote } from '../lib/parking';
+import type { BillingCycle } from '../types';
 
 type FilterType = 'all' | 'active' | 'expiring' | 'expired' | 'terminated';
 
@@ -212,10 +214,15 @@ export default function Contracts() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-gray-800">NT${Number(c.monthlyRent).toLocaleString()}</div>
-                    <div className="text-xs text-gray-400">/月</div>
-                  </div>
+                  {(() => {
+                    const b = billingSummary(c);
+                    return (
+                      <div className="text-right">
+                        <div className="font-bold text-gray-800">NT${b.amount.toLocaleString()}</div>
+                        <div className="text-xs text-gray-400">{c.billingCycle && c.billingCycle !== 'MONTHLY' ? `${b.label} ` : ''}{b.unit}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 bg-warm rounded-xl p-3 mb-3 text-xs text-center">
@@ -310,7 +317,11 @@ export default function Contracts() {
                     </button>
                     <div className="flex items-center gap-1 text-xs text-gray-400 ml-auto">
                       <Calendar className="w-3 h-3" />
-                      每月 {c.rentDueDay} 日繳費
+                      {c.billingCycle === 'SHORT_TERM'
+                        ? '起租日一次收清'
+                        : c.billingCycle && c.billingCycle !== 'MONTHLY'
+                          ? `每 ${CYCLE_MONTHS[c.billingCycle]} 個月收一次・${c.rentDueDay} 日`
+                          : `每月 ${c.rentDueDay} 日繳費`}
                     </div>
                   </div>
                 )}
@@ -444,6 +455,8 @@ function AddContractModal({ contract, units, tenants, onClose, onSaved }: {
     monthlyRent: contract ? String(contract.monthlyRent) : '',
     depositAmount: contract ? String(contract.depositAmount ?? '') : '',
     rentDueDay: String(contract?.rentDueDay ?? 5),
+    billingCycle: (contract?.billingCycle ?? 'MONTHLY') as BillingCycle,
+    periodAmount: contract?.periodAmount != null ? String(contract.periodAmount) : '',
     notes: contract?.notes ?? '',
     vehicleId: contract?.vehicleId ?? '',
     accessCard: contract?.accessCard ?? '',
@@ -454,18 +467,37 @@ function AddContractModal({ contract, units, tenants, onClose, onSaved }: {
     ? contract.tenant?.vehicles ?? []
     : tenants.find((t) => t.id === form.tenantId)?.vehicles ?? [];
 
+  const [error, setError] = useState('');
+  const selectedUnit = units.find((u) => u.id === form.unitId) ?? contract?.unit;
+  const shortTerm = form.billingCycle === 'SHORT_TERM';
+  const months = form.billingCycle === 'SHORT_TERM' ? 0 : CYCLE_MONTHS[form.billingCycle];
+  const fullPrice = (Number(form.monthlyRent) || 0) * months; // 每期原價
+  const days = shortTerm ? shortTermDays(form.startDate, form.endDate) : 0;
+  const quote = shortTerm ? shortTermQuote(selectedUnit, days) : null;
+  // 每期金額留空 = 原價（月租 × 期數）；短租留空 = 依日租／週租估價
+  const effectiveAmount = form.periodAmount !== '' ? Number(form.periodAmount) : shortTerm ? quote : fullPrice;
+  const discount = !shortTerm && form.periodAmount !== '' && fullPrice > 0 ? fullPrice - Number(form.periodAmount) : 0;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (contract) {
-      const { unitId: _u, tenantId: _t, ...rest } = form;
-      await api.put(`/contracts/${contract.id}`, rest);
-    } else {
-      await api.post('/contracts', form);
+    setError('');
+    // 月繳且沒另外設定金額時，不存每期金額（跟著月租走）
+    const payload = {
+      ...form,
+      periodAmount: form.billingCycle === 'MONTHLY' ? '' : form.periodAmount !== '' ? form.periodAmount : shortTerm && quote != null ? String(quote) : '',
+    };
+    try {
+      if (contract) {
+        const { unitId: _u, tenantId: _t, ...rest } = payload;
+        await api.put(`/contracts/${contract.id}`, rest);
+      } else {
+        await api.post('/contracts', payload);
+      }
+      onSaved();
+    } catch (err: any) {
+      setError(err?.response?.data?.error ?? '儲存失敗');
     }
-    onSaved();
   }
-
-  const selectedUnit = units.find((u) => u.id === form.unitId);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 p-4">
@@ -516,20 +548,62 @@ function AddContractModal({ contract, units, tenants, onClose, onSaved }: {
               <input type="date" className="input" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} required />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">繳費方式</label>
+            <select
+              className="input"
+              value={form.billingCycle}
+              onChange={(e) => setForm({ ...form, billingCycle: e.target.value as BillingCycle, periodAmount: '' })}
+            >
+              {Object.entries(BILLING_CYCLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-sm font-medium mb-1">月租金 <span className="text-red-400">*</span></label>
-              <input type="number" className="input" value={form.monthlyRent} onChange={(e) => setForm({ ...form, monthlyRent: e.target.value })} required />
+              <label className="block text-sm font-medium mb-1">月租金 {!shortTerm && <span className="text-red-400">*</span>}</label>
+              <input type="number" className="input" value={form.monthlyRent} onChange={(e) => setForm({ ...form, monthlyRent: e.target.value })} required={!shortTerm} placeholder={shortTerm ? '參考用' : ''} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">押金</label>
               <input type="number" className="input" value={form.depositAmount} onChange={(e) => setForm({ ...form, depositAmount: e.target.value })} placeholder="0" />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">每月繳租日</label>
-            <input type="number" min="1" max="31" className="input" value={form.rentDueDay} onChange={(e) => setForm({ ...form, rentDueDay: e.target.value })} />
-          </div>
+          {form.billingCycle !== 'MONTHLY' && (
+            <div className="bg-warm rounded-xl p-3 space-y-1.5">
+              <label className="block text-sm font-medium">
+                {shortTerm ? `短租總額（${days > 0 ? `${days} 天` : '請先選日期'}）` : `每期收費（${months} 個月）`}
+              </label>
+              <input
+                type="number"
+                min="1"
+                className="input"
+                value={form.periodAmount}
+                onChange={(e) => setForm({ ...form, periodAmount: e.target.value })}
+                placeholder={shortTerm ? (quote != null ? `依日租／週租估 ${quote}` : '請輸入總金額') : `原價 ${fullPrice}`}
+                required={shortTerm && quote == null}
+              />
+              <div className="text-xs text-gray-500">
+                {shortTerm
+                  ? quote != null
+                    ? `留空會用車位的日租／週租價估算：NT$${quote.toLocaleString()}`
+                    : '這個車位沒有設定日租／週租價，請直接輸入總金額'
+                  : discount > 0
+                    ? `原價 NT$${fullPrice.toLocaleString()}，折扣 NT$${discount.toLocaleString()}（約 ${Math.round((Number(form.periodAmount) / fullPrice) * 100) / 10} 折）`
+                    : `留空 = 月租 × ${months} = NT$${fullPrice.toLocaleString()}；有折扣請輸入折扣後金額`}
+              </div>
+              {effectiveAmount != null && effectiveAmount > 0 && (
+                <div className="text-xs text-gray-400">
+                  {shortTerm ? '起租日開一張單，一次收清' : `從起租月起每 ${months} 個月開一張 NT$${effectiveAmount.toLocaleString()} 的單；最後一期不足 ${months} 個月時按比例計算`}
+                </div>
+              )}
+            </div>
+          )}
+          {!shortTerm && (
+            <div>
+              <label className="block text-sm font-medium mb-1">{form.billingCycle === 'MONTHLY' ? '每月繳租日' : '每期繳費日（幾號）'}</label>
+              <input type="number" min="1" max="31" className="input" value={form.rentDueDay} onChange={(e) => setForm({ ...form, rentDueDay: e.target.value })} />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
               <label className="block text-sm font-medium mb-1">登記車輛</label>
@@ -557,6 +631,7 @@ function AddContractModal({ contract, units, tenants, onClose, onSaved }: {
             <label className="block text-sm font-medium mb-1">備註</label>
             <textarea className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="選填" />
           </div>
+          {error && <div className="text-sm text-red-500">{error}</div>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button>
             <button type="submit" className="btn-primary flex-1">{contract ? '儲存' : '新增合約'}</button>

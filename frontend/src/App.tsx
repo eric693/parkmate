@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Intro from './pages/Intro';
+import Waitlist from './pages/Waitlist';
 import Dashboard from './pages/Dashboard';
 import Properties from './pages/Properties';
 import Tenants from './pages/Tenants';
@@ -64,6 +65,7 @@ export default function App() {
           >
             <Route index element={<PermissionGate><Dashboard /></PermissionGate>} />
             <Route path="properties" element={<PermissionGate><Properties /></PermissionGate>} />
+            <Route path="properties/waitlist" element={<PermissionGate><Waitlist /></PermissionGate>} />
             <Route path="tenants" element={<PermissionGate><Tenants /></PermissionGate>} />
             <Route path="vehicles" element={<PermissionGate><Vehicles /></PermissionGate>} />
             <Route path="finance" element={<PermissionGate><Finance /></PermissionGate>} />

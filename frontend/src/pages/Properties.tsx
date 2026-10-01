@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, Building2, Home, TrendingUp, Users } from 'lucide-react';
+import { X, Plus, Building2, Home, TrendingUp, Users, ListOrdered } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Property, Unit, Tenant, Contract } from '../types';
@@ -7,6 +7,20 @@ import HowTo from '../components/HowTo';
 import SearchBox, { matches } from '../components/SearchBox';
 import { AttachmentButton } from '../components/AttachmentModal';
 import { useAttachmentSummary, AttachmentSummary } from '../lib/attachments';
+import { SPOT_TYPE_LABEL, VEHICLE_KIND_LABEL, floorInput, unitSpecLabels } from '../lib/parking';
+import type { SpotType, VehicleKind } from '../types';
+
+type KindFilter = 'ALL' | VehicleKind | SpotType | 'CHARGER';
+const KIND_FILTERS: [KindFilter, string][] = [
+  ['ALL', '全部類型'], ['CAR', '汽車位'], ['MOTORCYCLE', '機車位'],
+  ['FLAT', '平面'], ['MECHANICAL_UPPER', '機械上層'], ['MECHANICAL_LOWER', '機械下層'], ['CHARGER', '有充電樁'],
+];
+function matchesKind(u: Unit, k: KindFilter) {
+  if (k === 'ALL') return true;
+  if (k === 'CHARGER') return !!u.hasCharger;
+  if (k === 'CAR' || k === 'MOTORCYCLE') return u.vehicleKind === k;
+  return u.spotType === k;
+}
 
 export default function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -18,6 +32,7 @@ export default function Properties() {
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VACANT' | 'OCCUPIED'>('ALL');
+  const [kindFilter, setKindFilter] = useState<KindFilter>('ALL');
   const [loading, setLoading] = useState(true);
   const propertyFiles = useAttachmentSummary('PROPERTY');
   const unitFiles = useAttachmentSummary('UNIT');
@@ -53,10 +68,20 @@ export default function Properties() {
       const propHit = matches(search, p.name, p.address);
       const units = p.units.filter((u) =>
         (statusFilter === 'ALL' || u.status === statusFilter)
-        && (propHit || matches(search, u.unitNumber, u.type, tenantOf(u.id)?.name, tenantOf(u.id)?.phone)));
+        && matchesKind(u, kindFilter)
+        && (propHit || matches(search, u.unitNumber, ...unitSpecLabels(u), tenantOf(u.id)?.name, tenantOf(u.id)?.phone)));
       return { ...p, units };
     })
-    .filter((p) => p.units.length > 0 || (statusFilter === 'ALL' && matches(search, p.name, p.address)));
+    .filter((p) => p.units.length > 0 || (statusFilter === 'ALL' && kindFilter === 'ALL' && matches(search, p.name, p.address)));
+
+  // 各類型空位數（有設定規格的車位才統計）
+  const allUnits = properties.flatMap((p) => p.units);
+  const vacancyByKind = KIND_FILTERS.filter(([k]) => k !== 'ALL')
+    .map(([k, label]) => {
+      const of = allUnits.filter((u) => matchesKind(u, k));
+      return { k, label, total: of.length, vacant: of.filter((u) => u.status === 'VACANT').length };
+    })
+    .filter((x) => x.total > 0);
 
   const units = selectedProperty?.units ?? [];
   const totalUnits = properties.reduce((s, p) => s + p.units.length, 0);
@@ -116,7 +141,28 @@ export default function Properties() {
         <button onClick={() => navigate('/contracts')} className="flex items-center gap-1.5 text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-brand hover:text-brand transition-colors">
           管理合約
         </button>
+        <button onClick={() => navigate('/properties/waitlist')} className="flex items-center gap-1.5 text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-brand hover:text-brand transition-colors">
+          <ListOrdered className="w-3.5 h-3.5" />候補名單
+        </button>
       </div>
+
+      {vacancyByKind.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 mb-5">
+          <div className="text-xs text-gray-400 mb-2">各類型空位（點選可篩選）</div>
+          <div className="flex flex-wrap gap-2">
+            {vacancyByKind.map((x) => (
+              <button
+                key={x.k}
+                onClick={() => { setKindFilter(kindFilter === x.k ? 'ALL' : x.k); setStatusFilter('VACANT'); }}
+                className={`text-xs rounded-lg px-2.5 py-1.5 border transition-colors ${kindFilter === x.k ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 text-gray-600 hover:border-brand'}`}
+              >
+                {x.label} <span className={`font-semibold ${x.vacant > 0 ? 'text-green-600' : 'text-gray-400'}`}>{x.vacant}</span>
+                <span className="text-gray-400">/{x.total}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {properties.length > 0 && (
         <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -131,6 +177,9 @@ export default function Properties() {
               </button>
             ))}
           </div>
+          <select className="input !w-auto text-xs py-1.5" value={kindFilter} onChange={(e) => setKindFilter(e.target.value as KindFilter)}>
+            {KIND_FILTERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
           <SearchBox value={search} onChange={setSearch} placeholder="搜尋停車場、地址、車位編號、車主" />
         </div>
       )}
@@ -170,14 +219,14 @@ export default function Properties() {
       {showAddProperty && <AddPropertyModal onClose={() => setShowAddProperty(false)} onSaved={fetchAll} />}
       {editProperty && <AddPropertyModal property={editProperty} onClose={() => setEditProperty(null)} onSaved={fetchAll} />}
       {showAddUnit && selectedProperty && (
-        <AddUnitModal
+        <UnitFormModal
           propertyId={selectedProperty.id}
           onClose={() => setShowAddUnit(false)}
           onSaved={() => { setShowAddUnit(false); fetchAll(); }}
         />
       )}
       {editUnit && (
-        <EditUnitModal
+        <UnitFormModal
           unit={editUnit}
           onClose={() => setEditUnit(null)}
           onSaved={() => { setEditUnit(null); fetchAll(); }}
@@ -284,8 +333,9 @@ function PropertyCard({
                       <div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="font-medium text-gray-700 text-sm whitespace-nowrap">{unit.unitNumber}</span>
-                          {unit.floor && <span className="text-xs text-gray-400">{unit.floor}F</span>}
-                          {unit.type && <span className="text-xs text-gray-400">{unit.type}</span>}
+                          {unitSpecLabels(unit).map((l) => (
+                            <span key={l} className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">{l}</span>
+                          ))}
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${unit.status === 'OCCUPIED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {unit.status === 'OCCUPIED' ? '已出租' : '空位'}
                           </span>
@@ -368,50 +418,83 @@ function AddPropertyModal({ property, onClose, onSaved }: { property?: Property;
   );
 }
 
-function AddUnitModal({ propertyId, onClose, onSaved }: { propertyId: string; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ unitNumber: '', floor: '', type: '', monthlyRent: '' });
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await api.post(`/properties/${propertyId}/units`, form);
-    onSaved(); onClose();
-  }
-  return (
-    <Modal title="新增車位" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div><label className="block text-sm font-medium mb-1">車位編號 <span className="text-red-400">*</span></label><input className="input" value={form.unitNumber} onChange={e => setForm({ ...form, unitNumber: e.target.value })} required /></div>
-        <div className="grid grid-cols-2 gap-2">
-          <div><label className="block text-sm font-medium mb-1">樓層</label><input type="number" className="input" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} /></div>
-          <div><label className="block text-sm font-medium mb-1">類型</label><input className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} placeholder="平面、機械、機車位" /></div>
-        </div>
-        <div><label className="block text-sm font-medium mb-1">月租金 <span className="text-red-400">*</span></label><input type="number" className="input" value={form.monthlyRent} onChange={e => setForm({ ...form, monthlyRent: e.target.value })} required /></div>
-        <div className="flex gap-2"><button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button><button type="submit" className="btn-primary flex-1">新增</button></div>
-      </form>
-    </Modal>
-  );
-}
-
-function EditUnitModal({ unit, onClose, onSaved }: { unit: Unit; onClose: () => void; onSaved: () => void }) {
+/** 新增／編輯車位。編輯時給 unit，新增時給 propertyId。 */
+function UnitFormModal({ unit, propertyId, onClose, onSaved }: { unit?: Unit; propertyId?: string; onClose: () => void; onSaved: () => void }) {
+  const str = (v: unknown) => (v == null ? '' : String(v));
   const [form, setForm] = useState({
-    unitNumber: unit.unitNumber,
-    floor: unit.floor ? String(unit.floor) : '',
-    type: unit.type ?? '',
-    monthlyRent: String(unit.monthlyRent),
+    unitNumber: unit?.unitNumber ?? '',
+    floor: floorInput(unit?.floor),
+    vehicleKind: unit?.vehicleKind ?? 'CAR',
+    spotType: unit?.spotType ?? (unit ? '' : 'FLAT'),
+    maxHeightCm: str(unit?.maxHeightCm),
+    maxWidthCm: str(unit?.maxWidthCm),
+    hasCharger: unit?.hasCharger ?? false,
+    monthlyRent: str(unit?.monthlyRent),
+    dailyRate: str(unit?.dailyRate),
+    weeklyRate: str(unit?.weeklyRate),
+    type: unit?.type ?? '',
   });
+  const [error, setError] = useState('');
+  const set = (k: keyof typeof form, v: string | boolean) => setForm({ ...form, [k]: v });
+  const mechanical = form.spotType === 'MECHANICAL_UPPER' || form.spotType === 'MECHANICAL_LOWER';
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await api.put(`/units/${unit.id}`, form);
-    onSaved(); onClose();
+    setError('');
+    try {
+      if (unit) await api.put(`/units/${unit.id}`, form);
+      else await api.post(`/properties/${propertyId}/units`, form);
+      onSaved(); onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.error ?? '儲存失敗');
+    }
   }
   return (
-    <Modal title="編輯車位" onClose={onClose}>
+    <Modal title={unit ? '編輯車位' : '新增車位'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div><label className="block text-sm font-medium mb-1">車位編號</label><input className="input" value={form.unitNumber} onChange={e => setForm({ ...form, unitNumber: e.target.value })} required /></div>
         <div className="grid grid-cols-2 gap-2">
-          <div><label className="block text-sm font-medium mb-1">樓層</label><input type="number" className="input" value={form.floor} onChange={e => setForm({ ...form, floor: e.target.value })} /></div>
-          <div><label className="block text-sm font-medium mb-1">類型</label><input className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} /></div>
+          <div><label className="block text-sm font-medium mb-1">車位編號 <span className="text-red-400">*</span></label><input className="input" value={form.unitNumber} onChange={e => set('unitNumber', e.target.value)} required /></div>
+          <div>
+            <label className="block text-sm font-medium mb-1">樓層</label>
+            <input className="input" value={form.floor} onChange={e => set('floor', e.target.value)} placeholder="B1、1、2" />
+          </div>
         </div>
-        <div><label className="block text-sm font-medium mb-1">月租金</label><input type="number" className="input" value={form.monthlyRent} onChange={e => setForm({ ...form, monthlyRent: e.target.value })} required /></div>
-        <div className="flex gap-2"><button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button><button type="submit" className="btn-primary flex-1">儲存</button></div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-sm font-medium mb-1">車種</label>
+            <select className="input" value={form.vehicleKind} onChange={e => set('vehicleKind', e.target.value)}>
+              {Object.entries(VEHICLE_KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">車位類型</label>
+            <select className="input" value={form.spotType} onChange={e => set('spotType', e.target.value)}>
+              <option value="">未設定</option>
+              {Object.entries(SPOT_TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+        {unit?.type && !form.spotType && (
+          <div className="text-xs text-gray-400 -mt-1">舊資料的類型文字：「{unit.type}」，請改選上方的車位類型</div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <div><label className="block text-sm font-medium mb-1">限高（公分）</label><input type="number" min="1" className="input" value={form.maxHeightCm} onChange={e => set('maxHeightCm', e.target.value)} placeholder={mechanical ? '例：160' : '選填'} /></div>
+          <div><label className="block text-sm font-medium mb-1">限寬（公分）</label><input type="number" min="1" className="input" value={form.maxWidthCm} onChange={e => set('maxWidthCm', e.target.value)} placeholder="選填" /></div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" className="accent-brand" checked={form.hasCharger} onChange={e => set('hasCharger', e.target.checked)} />
+          有電動車充電樁
+        </label>
+        <div><label className="block text-sm font-medium mb-1">月租金 <span className="text-red-400">*</span></label><input type="number" className="input" value={form.monthlyRent} onChange={e => set('monthlyRent', e.target.value)} required /></div>
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="block text-sm font-medium mb-1">日租價</label><input type="number" min="0" className="input" value={form.dailyRate} onChange={e => set('dailyRate', e.target.value)} placeholder="選填" /></div>
+            <div><label className="block text-sm font-medium mb-1">週租價</label><input type="number" min="0" className="input" value={form.weeklyRate} onChange={e => set('weeklyRate', e.target.value)} placeholder="選填" /></div>
+          </div>
+          <div className="text-xs text-gray-400 mt-1">開短租合約時用來自動估算總額</div>
+        </div>
+        {error && <div className="text-sm text-red-500">{error}</div>}
+        <div className="flex gap-2"><button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button><button type="submit" className="btn-primary flex-1">{unit ? '儲存' : '新增'}</button></div>
       </form>
     </Modal>
   );

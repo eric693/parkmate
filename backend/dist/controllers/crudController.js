@@ -21,6 +21,7 @@ const app_1 = require("../app");
 const dates_1 = require("../utils/dates");
 const deletionService_1 = require("../services/deletionService");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const waitlistService_1 = require("../services/waitlistService");
 const num = (v) => (v === '' || v == null ? undefined : Number(v));
 const date = (v) => (v ? new Date(String(v)) : undefined);
 // ── 租金記錄 ──────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ async function deleteContract(req, res) {
         return;
     }
     await (0, deletionService_1.removeContract)(contract.id);
+    await (0, waitlistService_1.onUnitVacated)(contract.unitId); // 車位若因此空出，通知候補
     res.json({ ok: true });
 }
 // ── 報修 ──────────────────────────────────────────────────────────

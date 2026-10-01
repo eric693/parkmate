@@ -6,6 +6,7 @@ import { prisma } from '../app';
 import { rentDueDate, startOfTodayTaipei } from '../utils/dates';
 import { removeContract, countUserData, wipeUserData } from '../services/deletionService';
 import bcrypt from 'bcryptjs';
+import { onUnitVacated } from '../services/waitlistService';
 
 const num = (v: unknown) => (v === '' || v == null ? undefined : Number(v));
 const date = (v: unknown) => (v ? new Date(String(v)) : undefined);
@@ -91,6 +92,7 @@ export async function deleteContract(req: AuthRequest, res: Response) {
   if (!contract) { res.status(404).json({ error: '找不到合約' }); return; }
 
   await removeContract(contract.id);
+  await onUnitVacated(contract.unitId); // 車位若因此空出，通知候補
   res.json({ ok: true });
 }
 

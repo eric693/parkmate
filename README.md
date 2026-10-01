@@ -6,6 +6,9 @@
 - 資料庫：PostgreSQL `parkmate`
 - pm2：`parkmate`
 - 新增功能：車輛／車牌管理、車牌查詢（車主、車位、遙控器、繳費狀態）、合約登記車輛與遙控器／感應卡（押金、歸還）
+- 車位規格：汽車／機車、平面／機械上層／機械下層、限高限寬、充電樁、樓層 B1/B2（存負數）、短租日租／週租價；車位頁可依類型篩選並看各類空位數
+- 繳費週期：合約可選月繳、季繳、半年繳、年繳（每期金額可設折扣，期中結束按比例）或短租（依日租／週租估價，起租日一次收清，過結束日自動到期）。計費規則在 backend/src/services/rentService.ts 的 `billingFor`
+- 候補名單（/properties/waitlist）：依停車場、車種、車位類型、充電樁、車高登記；車位空出（合約終止／到期／刪除、新增車位、手動改空位）時自動通知第一順位並 LINE 通知業者（backend/src/services/waitlistService.ts）
 - 隱藏住宅功能：水電帳單、預付電費、租金行情、點交、住宅法規合規檢查（開關在 frontend/src/lib/features.ts）
 
 - 登入頁示範帳號：`demo` / `demo1234`（backend/.env 的 `DEMO_ACCOUNT`/`DEMO_PASSWORD`，清空即不顯示；示範帳號不能改帳密）。停車場示範資料：`cd backend && npm run db:seed:parking`

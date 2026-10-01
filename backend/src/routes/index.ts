@@ -64,6 +64,9 @@ import {
   listAttachments, attachmentSummary, getCategories, uploadAttachment,
   downloadAttachment, updateAttachment, deleteAttachment, purgeOrphanAttachments,
 } from '../controllers/attachmentController';
+import {
+  getWaitlist, createWaitlistEntry, updateWaitlistEntry, deleteWaitlistEntry, notifyWaitlistEntry,
+} from '../controllers/waitlistController';
 
 const router = Router();
 
@@ -120,6 +123,13 @@ router.get('/properties/:propertyId/units', requireAuth, getUnits);
 router.post('/properties/:propertyId/units', requireAuth, createUnit);
 router.put('/units/:id', requireAuth, updateUnit);
 router.delete('/units/:id', requireAuth, deleteUnit);
+
+// 候補名單
+router.get('/waitlist', requireAuth, getWaitlist);
+router.post('/waitlist', requireAuth, createWaitlistEntry);
+router.put('/waitlist/:id', requireAuth, updateWaitlistEntry);
+router.delete('/waitlist/:id', requireAuth, deleteWaitlistEntry);
+router.post('/waitlist/:id/notify', requireAuth, notifyWaitlistEntry);
 
 // Tenants
 router.get('/tenants', requireAuth, getTenants);

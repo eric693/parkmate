@@ -39,6 +39,7 @@ const rentCompsController_1 = require("../controllers/rentCompsController");
 const tenantAuthController_1 = require("../controllers/tenantAuthController");
 const tenantPortalController_1 = require("../controllers/tenantPortalController");
 const attachmentController_1 = require("../controllers/attachmentController");
+const waitlistController_1 = require("../controllers/waitlistController");
 const router = (0, express_1.Router)();
 // 任何刪除成功（含清空資料）後，清掉掛在已不存在資料上的附件檔
 router.use((req, res, next) => {
@@ -86,6 +87,12 @@ router.get('/properties/:propertyId/units', auth_1.requireAuth, unitController_1
 router.post('/properties/:propertyId/units', auth_1.requireAuth, unitController_1.createUnit);
 router.put('/units/:id', auth_1.requireAuth, unitController_1.updateUnit);
 router.delete('/units/:id', auth_1.requireAuth, unitController_1.deleteUnit);
+// 候補名單
+router.get('/waitlist', auth_1.requireAuth, waitlistController_1.getWaitlist);
+router.post('/waitlist', auth_1.requireAuth, waitlistController_1.createWaitlistEntry);
+router.put('/waitlist/:id', auth_1.requireAuth, waitlistController_1.updateWaitlistEntry);
+router.delete('/waitlist/:id', auth_1.requireAuth, waitlistController_1.deleteWaitlistEntry);
+router.post('/waitlist/:id/notify', auth_1.requireAuth, waitlistController_1.notifyWaitlistEntry);
 // Tenants
 router.get('/tenants', auth_1.requireAuth, tenantController_1.getTenants);
 router.post('/tenants', auth_1.requireAuth, tenantController_1.createTenant);

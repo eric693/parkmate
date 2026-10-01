@@ -15,6 +15,8 @@ const lineService_1 = require("./lineService");
 const reminderService_1 = require("./reminderService");
 const prepaidService_1 = require("./prepaidService");
 const dates_1 = require("../utils/dates");
+const rentService_1 = require("./rentService");
+const waitlistService_1 = require("./waitlistService");
 // 通知排程器。
 // 舊版是寫死的 cron（每天 09:00 一次跑完所有事、每月 1 日 08:00 產生租金單）。
 // 現在改成：每個業者 × 每種通知一列規則，各自有執行時間與參數；
@@ -62,8 +64,12 @@ async function generateRentRecords(userId) {
             unit: { property: { userId } },
         },
     });
+    let generated = 0;
     for (const contract of contracts) {
-        const dueDate = (0, dates_1.rentDueDate)(year, month, contract.rentDueDay);
+        // 季繳、年繳、短租不是每個月都開單
+        const bill = (0, rentService_1.billingFor)(contract, year, month);
+        if (!bill)
+            continue;
         await app_1.prisma.rentRecord.upsert({
             where: { contractId_year_month: { contractId: contract.id, year, month } },
             update: {},
@@ -71,13 +77,14 @@ async function generateRentRecords(userId) {
                 contractId: contract.id,
                 year,
                 month,
-                dueDate,
-                amount: contract.monthlyRent,
+                dueDate: bill.dueDate,
+                amount: bill.amount,
                 status: 'PENDING',
             },
         });
+        generated++;
     }
-    return { generated: contracts.length };
+    return { generated };
 }
 /** 把該業者名下已過期未繳的租金標記為逾期。逾期催繳與彙整都依賴這個狀態。 */
 async function markOverdue(userId) {
@@ -114,10 +121,27 @@ async function sendOverdueDigest(userId) {
     await (0, lineService_1.sendLandlordMessage)(userId, lines.join('\n\n'));
     return { sent: records.length };
 }
+/** 已過結束日還是「進行中」的合約轉為到期，車位改空位並通知候補（短租主要靠這裡結束）。 */
+async function expireEndedContracts(userId) {
+    const ended = await app_1.prisma.contract.findMany({
+        where: { status: 'ACTIVE', endDate: { lt: (0, dates_1.startOfTodayTaipei)() }, unit: { property: { userId } } },
+    });
+    for (const c of ended) {
+        await app_1.prisma.contract.update({ where: { id: c.id }, data: { status: 'EXPIRED' } });
+        const stillActive = await app_1.prisma.contract.count({ where: { unitId: c.unitId, status: 'ACTIVE' } });
+        if (stillActive === 0) {
+            await app_1.prisma.unit.update({ where: { id: c.unitId }, data: { status: 'VACANT' } });
+            await (0, waitlistService_1.onUnitVacated)(c.unitId);
+        }
+    }
+    return ended.length;
+}
 async function sendContractExpiry(userId, daysBefore) {
     const now = new Date();
+    const expired = await expireEndedContracts(userId);
+    // 短租天數短，不發 30/14/7 天到期提醒，也不提早轉到期
     const contracts = await app_1.prisma.contract.findMany({
-        where: { status: 'ACTIVE', unit: { property: { userId } } },
+        where: { status: 'ACTIVE', billingCycle: { not: 'SHORT_TERM' }, unit: { property: { userId } } },
         include: { tenant: true, unit: true },
     });
     let sent = 0;
@@ -133,9 +157,10 @@ async function sendContractExpiry(userId, daysBefore) {
         if (minDays !== null && daysLeft === minDays) {
             await app_1.prisma.contract.update({ where: { id: contract.id }, data: { status: 'EXPIRED' } });
             await app_1.prisma.unit.update({ where: { id: contract.unitId }, data: { status: 'VACANT' } });
+            await (0, waitlistService_1.onUnitVacated)(contract.unitId);
         }
     }
-    return { sent };
+    return { sent, expired };
 }
 /** 執行單一規則。手動觸發與排程都走這裡，行為一致。 */
 async function runRule(rule) {

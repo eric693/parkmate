@@ -6,7 +6,7 @@ exports.moduleForPath = moduleForPath;
 exports.sanitizePermissions = sanitizePermissions;
 exports.MODULES = [
     { key: 'dashboard', label: '總覽' },
-    { key: 'properties', label: '車位' },
+    { key: 'properties', label: '車位與候補名單' },
     { key: 'tenants', label: '車主與車牌' },
     { key: 'contracts', label: '合約' },
     { key: 'finance', label: '帳務（月租收費、紀錄、統計、鈴聲）' },
@@ -24,7 +24,7 @@ const PATH_MODULES = [
     [/^\/dashboard/, 'dashboard'],
     [/^\/calendar/, 'dashboard'],
     [/^\/units\/[^/]+\/pricing/, 'market'],
-    [/^\/(properties|units)/, 'properties'],
+    [/^\/(properties|units|waitlist)/, 'properties'],
     [/^\/tenants\/[^/]+\/credit/, 'tenants'],
     [/^\/(tenants|tenant-credit|line\/tenants|vehicles)/, 'tenants'],
     [/^\/(contracts|handovers|contract-templates)/, 'contracts'],
