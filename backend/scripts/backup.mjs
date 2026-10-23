@@ -1,7 +1,7 @@
 // 每日資料庫備份：pg_dump 壓縮檔存到專案根目錄 backups/，保留最近 14 份。
 // 由 cron 呼叫：node /root/project/RentMate/backend/scripts/backup.mjs
 // 還原：gunzip -c backups/rentmate_XXXX.sql.gz | psql "$DATABASE_URL"
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
@@ -11,6 +11,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.chdir(path.join(__dirname, '..')); // 讀 backend/.env
+// 明確指定 .env 位置：ES module 的 import 會在 chdir 之前執行，cron 從 /root 啟動時會讀不到
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+if (!process.env.DATABASE_URL) { console.error(`[${new Date().toISOString()}] 讀不到 DATABASE_URL`); process.exit(1); }
 const BACKUP_DIR = path.join(__dirname, '..', '..', 'backups');
 const KEEP = 14;
 
